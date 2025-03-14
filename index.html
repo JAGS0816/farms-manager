@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ubicación de Granja</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 300px;
+        }
+        label {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 5px;
+            display: block;
+        }
+        input {
+            padding: 10px;
+            margin: 5px 0 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px; 
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .sendButton {
+            display: flex;
+            width: 100%;
+            justify-content:end;
+        }
+
+        .popupSignIn {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            opacity: 1;
+            z-index: 10000;
+        }
+
+        .grayScreen {
+            position: fixed;
+            top: 0;
+            background-color: black;
+            opacity: .5;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+        }
+
+        input, .autocomplete {
+            padding: 10px;
+            margin: 5px 0 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        input:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+        }
+        .farmInfo {
+            position: relative; /* Se usa para que .suggestions se posicione correctamente */
+            width: 100%;
+        }
+
+        .suggestions {
+            position: absolute;
+            background: white;
+            border-top: none;
+            max-height: 150px;
+            overflow-y: auto;
+            width: 100%; /* Se ajusta al tamaño del input */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        .suggestion {
+            padding: 10px;
+            cursor: pointer;
+        }
+        .suggestion:hover {
+            background: #f4f4f9;
+        }
+        .error {
+            color: red;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+       
+    </style>
+</head>
+<body>
+    <div class="grayScreen" id="grayScreen">
+    </div>
+    <div class="popupSignIn" id="popupSignIn">
+        <h2>Inicio de sesión</h2>
+        <label for="email">Email:</label>
+        <input type="text" id="email" required>
+        <div class="sendButton">
+            <button onclick="sendEmail()">Enviar</button>
+        </div>
+    </div>
+    <div class="container">
+        <h2>Registrar Granja</h2>
+        <div class="farmInfo">
+            <label for="farmName">Nombre de la Granja:</label>
+            <input type="text" id="farmName" oninput="showSuggestions(this, 'farm')" required>
+            <div id="farmSuggestions" class="suggestions"></div>
+            <div id="farmError" class="error"></div>
+        </div>
+        <div class="farmInfo">
+            <label for="farmCode">Código de la Granja:</label>
+            <input type="text" id="farmCode" required>
+            <div id="farmCodeError" class="error"></div>
+        </div>
+        <div class="farmInfo">
+            <label for="country">Source/País:</label>
+            <input type="text" id="country" oninput="showSuggestions(this, 'country')" required>
+            <div id="countrySuggestions" class="suggestions"></div>
+            <div id="countryError" class="error"></div>
+        </div>
+        <div class="sendButton">
+            <button onclick="validateAndSend()">Enviar</button>
+        </div>
+    </div>
+
+    
+    <script>
+        const farmNames = ["Angeles", "Arenal", "Bonanza", "Caballos 1", "Caballos 2", "Catalina", "Catalina", "Despensa", "Dilia ester", "Dilia esther", "El rubi", "El silencio", "Esmeralda", "Fabliska", "Florida", "Giselle beatriz", "Gloria mercedes", "Golondrina nueva", "Iberia", "Julia carolina", "La bacota", "La ceiba", "La linda", "La lucy", "La martina", "Lucila marina", "Macondo", "Maita", "Manantial organico", "Maria azucena", "Marilucy", "Marte", "Naranjitos", "Nuevo mundo", "Patuca", "Pinos", "Porvenir", "Porvenir", "Sacramento", "Sacramento", "San pedro", "Silvia maria", "Tamacara", "Teobromina", "Vijagual", "Villa beatriz", "1", "10", "11", "12", "13", "15", "16", "17", "18", "2", "21", "23", "28", "29", "3", "4", "6", "7", "8", "9", "Acorsa 1", "Banasol 1", "Carrandi b", "Carrandi c", "Carrandi d", "Carrandi e", "Carrandi f", "Cartagena", "El indio", "Esperanza", "Estrella", "Estrella", "Frubasa 1", "Frubasa 2", "Guaria", "Jardin", "Laureles", "Laureles", "Limo b", "Lomas de sierpe", "Malanga", "Mata limon 1", "Mata limon-2", "Mata limon-3", "Monte bello 3", "Monte blanco", "Palo verde 1", "Palo verde 4", "Palo verde-3", "San pablo", "Santa fe", "Sincelejo", "Verde azul 1", "Verde azul 2", "Victoria", "1525", "1601", "1623", "345", "35036", "360", "36020", "366", "376", "389", "395", "409", "411", "414", "421", "425", "463", "5437", "7401", "7419", "9817", "9818", "Abeja", "Alberto rojas", "Alfao", "Americo rodriguez", "Antonio ventura", "Aris matos", "Banana green 2", "Bananosa", "Banelino", "Belice cabrera", "Benito ferreira", "Billy", "Botoncillo", "Carlos peguero", "Carlos polanco", "Carlos santana", "Cesar emilio olivo", "Cesar olivo", "Charming creeks", "Cista josefina garcia peti", "Dario gomez", "Ed&rac", "Elnio duran", "Emenegildo cruz", "Enmanuel reyes", "Eugenia peguero", "Fausto rodriguez", "Federico peguero", "Felix cruz", "Felix filpo", "Fernandez", "Fernando rodriguez", "Finca isleta", "Five star", "Francisco madera", "Gaby matias", "Gladis almanzar", "Global banana", "Hacienda alfau", "Harold robles", "Humberto matias", "Jorge tavera", "Jorge taveras", "Jose polanco", "Jose popoteur", "Jose popotue", "Jose tabare", "Juan gomez", "Juan meli", "Juan minier", "Julia morel", "Julian martinez", "Julita comas", "Kelisa 2", "La isleta", "Leonardo minier", "Los cerros", "Los peti", "Los rios", "Luis malqui", "Luis rodriguez", "Luis rosa", "Luisa maria acosta", "Malvin arias", "Manuel santana", "Marco rodriguez", "Maricela genao", "Miguelina beliar", "Mota", "Natalia cruz", "Nelson novo", "Norberto ceballos", "Orlando bautista", "Pedro arias", "Pedro jimenez", "Pedro rosario", "Pimentel", "Porfirio acosta", "Ramon gomez", "Ramon marrero", "Ramon matias", "Ramon tejada", "Ramon e ulloa", "Raul espinal", "Salvador estevez", "Santiago gil", "Saury hernandez", "Saury rodriguez", "Simeon ramirez", "Terra nova", "Veronica bermudez", "Villa copa", "Villa sinda", "Wiliam rodriguez", "Willy  j mercado", "Yimmy morel", "Banapresa", "Benjamin 1", "Benjamin 2", "Carmita c", "Clelia irlanda", "Clementina", "Cristina maria", "Dallas", "Darwin miguel", "Davis 4", "Deli # 2", "Deli # 3", "Deli # 7", "Deli 5", "Deli 8", "Deli-8", "El arrozal", "El azucar", "El pechiche", "El porvenir", "Eva maria", "Fatima # 4", "Fatima # 5", "Fatima #1", "Fibanare", "Filomena", "Flor amarillal", "Fatima", "Fatima 5", "Gala ii", "Gomez", "Guarumal 7", "Hermanos reiquim", "Isabel maria", "Jerusalen", "Jujanillo 2", "L a joya", "La brigada", "La chepa", "La comuna", "La fabiola", "La galarza 1-2", "La joya", "La maravilla", "La pampa", "La paz", "La pia", "La pia 1 y 2", "La pia", "La victoria", "La vite", "Las pias", "Liliana", "Lote 30", "Mata negro", "Mata negro 2", "Matales", "Matanegro 1", "Monica 1", "Nueva era 124", "Patricia", "Pechiche", "Primavera", "Samanes", "San enrique", "San jorge", "San jose", "San juan", "San lorenzo", "San miguel", "Santa ines", "Santa lucia", "Santa monica", "Sarita", "Techo rojo", "Ursulina", "Virgen del rosario", "Virgen del rosario", "Virgen del rosario #2", "Virgen del rosario 1", "Virgen del rosario 2", "Zapotal", "Montanesa", "Santa ana 01", "Emma i", "Emma ii", "Emmall", "Jc", "Trinidad", "401", "Appbosa", "Maran", "Agrovayan viendo", "Altamar", "Altamira", "Antares", "Antojo", "Arcua", "Buena vida", "Buenos aires", "Cantho", "Cantho", "Caribas", "Carubas", "Cascada", "Catamaran", "Cativos", "Chinita", "Cortijo", "Cunas", "Dunas", "Eden", "El paso", "El roble", "El tagual", "Estampa", "Frontera", "Genesis", "Horizonte", "Iris recro", "Juanca", "Kalamary", "Katia", "La ceja", "La gira", "La llave", "La navarra", "La tortuga", "Las victorias", "Las victimas", "Llano verde", "Maria bonita", "Matogroso 2", "Monica", "Oasis", "Panorama", "Puerto alegre", "Raices", "Regino ceren", "Renacer", "Retorno", "Rincon", "Roble", "San antonio", "San juan", "Santa martha", "Santa maria", "Santa maria f", "Tierra grata", "Tikal", "Tortuga", "Toscana", "Trapiche", "Tucanes", "Ucrania", "Villaclemencia", "Villalolita", "Zarzamora", "Zumbadora"];
+        const countries = ["Banasan", "Peru", "Uraba", "Nicaragua", "Belize", "Dom rep", "Ecuador", "Costa rica", "Guatemala"];
+
+        function showSuggestions(input, type) {
+            const suggestionsContainer = document.getElementById(type + 'Suggestions');
+            suggestionsContainer.innerHTML = '';
+            const query = input.value.toLowerCase();
+            if (!query) return;
+            
+            const list = type === 'farm' ? farmNames : countries;
+            const filtered = list.filter(item => item.toLowerCase().includes(query));
+            
+            filtered.forEach(item => {
+                const div = document.createElement('div');
+                div.classList.add('suggestion');
+                div.textContent = item;
+                div.onclick = () => {
+                    input.value = item;
+                    suggestionsContainer.innerHTML = '';
+                };
+                suggestionsContainer.appendChild(div);
+            });
+        }
+
+        let email = '';
+
+        function sendEmail() {
+            const emailInput = document.getElementById('email').value.trim();
+            if (!emailInput) {
+                alert("Por favor, ingresa un correo electrónico.");
+                return;
+            }
+
+            // Llamada a la API para validar el email
+            fetch('https://48dmci9f9c.execute-api.us-east-2.amazonaws.com/default/manage_farm_data', {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    action: "validate_email",
+                    email: emailInput
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data)
+                    if (data.isValid) {
+                        // Guardar el email y ocultar los contenedores
+                        email = emailInput;
+                        document.getElementById('grayScreen').style.display = 'none';
+                        document.getElementById('popupSignIn').style.display = 'none';
+                    } else {
+                        alert("El correo electrónico no es válido.");
+                    }
+                })
+                .catch(error => alert("Error al validar el email: " + error));
+        }
+
+        function validateAndSend() {
+            const farmNameInput = document.getElementById('farmName');
+            const countryInput = document.getElementById('country');
+            const farmCodeInput = document.getElementById('farmCode');
+            const farmError = document.getElementById('farmError');
+            const countryError = document.getElementById('countryError');
+            const farmCodeError = document.getElementById('farmCodeError');
+            
+            let isValid = true;
+            
+            if (!farmNames.includes(farmNameInput.value.trim())) {
+                farmError.textContent = "Selecciona un nombre de la lista.";
+                isValid = false;
+            } else {
+                farmError.textContent = "";
+            }
+            
+            if (!countries.includes(countryInput.value.trim())) {
+                countryError.textContent = "Selecciona un país de la lista.";
+                isValid = false;
+            } else {
+                countryError.textContent = "";
+            }
+            //validate farm code 
+            if (farmCodeInput.value.trim() === "") {
+                farmCodeError.textContent = "El código de la granja es requerido.";
+                isValid = false;
+            }
+            else {
+                farmCodeError.textContent = "";
+            }
+            console.log(isValid)
+            if (isValid) {
+                sendLocation();
+            }
+        }
+
+        function sendLocation() {
+            const farmName = document.getElementById('farmName').value.trim();
+            const farmCode = document.getElementById('farmCode').value.trim();
+            const country = document.getElementById('country').value.trim();
+            
+            if (!farmName || !farmCode || !country) {
+                alert("Por favor, ingresa todos los datos de la granja.");
+                return;
+            }
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    console.log(lat, lon);
+                    
+                    // Llamada a la API para registrar la granja
+                    fetch('https://48dmci9f9c.execute-api.us-east-2.amazonaws.com/default/manage_farm_data', {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            action: "add",
+                            farmData: {
+                                FarmName: farmName,
+                                FarmCode: farmCode,
+                                Country: country,
+                                Latitude: lat,
+                                Longitude: lon,
+                                UserEmail: email
+                            }
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert("Granja registrada con éxito");
+                        window.location.href = "/confirmacion";
+                    }
+                    )
+                    .catch(error => alert("Error al registrar la granja: " + error));
+                }, () => alert("No se pudo obtener la ubicación."));
+            } else {
+                alert("Geolocalización no soportada en este navegador.");
+            }
+        }
+    </script>
+</body>
+</html>
